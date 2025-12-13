@@ -27,22 +27,8 @@
             text-align: center;
             backdrop-filter: blur(10px);
             border: 2px solid rgba(255, 255, 255, 0.1);
-            min-width: 180px;
+            min-width: 20px;
             transition: all 0.3s ease;
-        }
-        
-        .mask-indicator {
-            position: fixed;
-            top: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 9999;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 12px;
-            text-align: center;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 4px 12px;
-            border-radius: 12px;
         }
         
         #switchBtn {
@@ -108,7 +94,6 @@
     </a-scene>
 
     <div id="currentMaskName">🎅</div>
-    <div class="mask-indicator">Нажмите кнопку для смены маски</div>
     <button id="switchBtn">🔄</button>
 
     <script>
@@ -159,9 +144,7 @@
               });
               
               updateMaskName();
-          });
-          
-          maskIndicator.textContent = `${maskNames.length} маски загружены`;
+          });          
       });
     </script>
 </body>
