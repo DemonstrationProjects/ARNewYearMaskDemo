@@ -1,28 +1,79 @@
 <html>
-  <head>
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-aframe.prod.js"></script>
-
     <style>
-      #switchBtn {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 12px 20px;
-        font-size: 16px;
-        background: #1e90ff;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        z-index: 999;
-      }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            background-color: #000;
+        }
+        
+        #currentMaskName {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            min-width: 180px;
+            transition: all 0.3s ease;
+        }
+        
+        .mask-indicator {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 4px 12px;
+            border-radius: 12px;
+        }
+        
+        #switchBtn {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        #switchBtn:hover {
+            transform: translateX(-50%) scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        #switchBtn:active {
+            transform: translateX(-50%) scale(0.95);
+        }
     </style>
-  </head>
-
-  <body>
+</head>
+<body>
     <a-scene
       mindar-face
       embedded
@@ -41,7 +92,6 @@
 
       <a-camera active="false" position="0 0 0"></a-camera>
 
-      <!-- Occluder -->
       <a-entity mindar-face-target="anchorIndex: 168">
         <a-gltf-model
           mindar-face-occluder
@@ -51,62 +101,68 @@
         </a-gltf-model>
       </a-entity>
 
-      <!-- Маски -->
       <a-entity mindar-face-target="anchorIndex: 168">
         <a-gltf-model id="maskEntity" src="#maskModel" position="0 0 0" rotation="0 0 0" scale="1 1 1"></a-gltf-model>
       </a-entity>
 
     </a-scene>
 
-    <button id="switchBtn">Сменить маску</button>
+    <div id="currentMaskName">🎅</div>
+    <div class="mask-indicator">Нажмите кнопку для смены маски</div>
+    <button id="switchBtn">🔄</button>
 
     <script>
-      // Список имен мешей внутри GLB
       const maskNames = ['SantaClaus', 'Reindeer'];
+      const maskDisplayNames = ['🎅', '🦌'];
       let currentIndex = 0;
 
       const maskEntity = document.getElementById('maskEntity');
+      const currentMaskName = document.getElementById('currentMaskName');
+      const switchBtn = document.getElementById('switchBtn');
+      const maskIndicator = document.querySelector('.mask-indicator');
 
-      // Функция для логов всех мешей
-      function logMeshes(node, prefix = '') {
-        if (node.isMesh) {
-          console.log(prefix + 'Mesh:', node.name, 'visible:', node.visible);
-        }
-        node.children.forEach(child => logMeshes(child, prefix + '  '));
+      function updateMaskName() {
+          currentMaskName.textContent = maskDisplayNames[currentIndex];
+          
+          currentMaskName.style.transform = 'translateX(-50%) scale(1.1)';
+          currentMaskName.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+          currentMaskName.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+          
+          setTimeout(() => {
+              currentMaskName.style.transform = 'translateX(-50%) scale(1)';
+          }, 200);
+          
+          setTimeout(() => {
+              currentMaskName.style.background = 'rgba(0, 0, 0, 0.8)';
+              currentMaskName.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+          }, 1000);
       }
 
       maskEntity.addEventListener('model-loaded', () => {
-        console.log('Модель загружена! Все объекты внутри:');
-        const object3D = maskEntity.getObject3D('mesh'); // получаем трехмерный объект
-
-        if (!object3D) {
-          console.warn('object3D не найден');
-          return;
-        }
-
-        // Логируем все меши
-        logMeshes(object3D);
-
-        // Скрываем все маски кроме первой
-        object3D.traverse((node) => {
-          if (node.isMesh && maskNames.includes(node.name)) {
-            node.visible = (node.name === maskNames[0]);
-          }
-        });
-
-        // После загрузки подключаем кнопку
-        document.getElementById('switchBtn').addEventListener('click', () => {
-          currentIndex = (currentIndex + 1) % maskNames.length;
-          console.log('Смена маски на:', maskNames[currentIndex]);
+          const object3D = maskEntity.getObject3D('mesh');
+          
+          if (!object3D) return;
 
           object3D.traverse((node) => {
-            if (node.isMesh && maskNames.includes(node.name)) {
-              node.visible = (node.name === maskNames[currentIndex]);
-              console.log('Устанавливаем видимость:', node.name, node.visible);
-            }
+              if (node.isMesh && maskNames.includes(node.name)) {
+                  node.visible = (node.name === maskNames[0]);
+              }
           });
-        });
+
+          switchBtn.addEventListener('click', () => {
+              currentIndex = (currentIndex + 1) % maskNames.length;
+              
+              object3D.traverse((node) => {
+                  if (node.isMesh && maskNames.includes(node.name)) {
+                      node.visible = (node.name === maskNames[currentIndex]);
+                  }
+              });
+              
+              updateMaskName();
+          });
+          
+          maskIndicator.textContent = `${maskNames.length} маски загружены`;
       });
     </script>
-  </body>
+</body>
 </html>
