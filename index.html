@@ -51,9 +51,9 @@
         </a-gltf-model>
       </a-entity>
 
-      <!-- Маски (все в одной модели) -->
-      <a-entity mindar-face-target="anchorIndex: 168" id="maskParent">
-        <a-gltf-model id="maskModel" src="#maskModel" position="0 0 0" rotation="0 0 0" scale="1 1 1"></a-gltf-model>
+      <!-- Маски -->
+      <a-entity mindar-face-target="anchorIndex: 168">
+        <a-gltf-model id="maskEntity" src="#maskModel" position="0 0 0" rotation="0 0 0" scale="1 1 1"></a-gltf-model>
       </a-entity>
 
     </a-scene>
@@ -61,49 +61,50 @@
     <button id="switchBtn">Сменить маску</button>
 
     <script>
-      const maskNames = ['SantaClaus', 'Reindeer']; // имена мешей в Blender
+      // Список имен мешей внутри GLB
+      const maskNames = ['SantaClaus', 'Reindeer'];
       let currentIndex = 0;
-      const maskEntity = document.getElementById('maskModel');
 
-      // Функция для логов
+      const maskEntity = document.getElementById('maskEntity');
+
+      // Функция для логов всех мешей
       function logMeshes(node, prefix = '') {
         if (node.isMesh) {
           console.log(prefix + 'Mesh:', node.name, 'visible:', node.visible);
         }
-        if (node.children.length > 0) {
-          node.children.forEach(child => logMeshes(child, prefix + '  '));
-        }
+        node.children.forEach(child => logMeshes(child, prefix + '  '));
       }
 
       maskEntity.addEventListener('model-loaded', () => {
-        console.log('Модель загружена, все объекты:');
-        logMeshes(maskEntity.object3D);
+        console.log('Модель загружена! Все объекты внутри:');
+        const object3D = maskEntity.getObject3D('mesh'); // получаем трехмерный объект
 
-        // Сначала показываем только первый меш
-        maskEntity.object3D.traverse((node) => {
+        if (!object3D) {
+          console.warn('object3D не найден');
+          return;
+        }
+
+        // Логируем все меши
+        logMeshes(object3D);
+
+        // Скрываем все маски кроме первой
+        object3D.traverse((node) => {
           if (node.isMesh && maskNames.includes(node.name)) {
             node.visible = (node.name === maskNames[0]);
           }
         });
-      });
 
-      document.getElementById('switchBtn').addEventListener('click', () => {
-        if (!maskEntity.object3D) {
-          console.warn('object3D ещё не готов');
-          return;
-        }
+        // После загрузки подключаем кнопку
+        document.getElementById('switchBtn').addEventListener('click', () => {
+          currentIndex = (currentIndex + 1) % maskNames.length;
+          console.log('Смена маски на:', maskNames[currentIndex]);
 
-        const object3D = maskEntity.object3D;
-        const prevIndex = currentIndex;
-        currentIndex = (currentIndex + 1) % maskNames.length;
-
-        console.log('Смена маски:', maskNames[currentIndex]);
-
-        object3D.traverse((node) => {
-          if (node.isMesh && maskNames.includes(node.name)) {
-            node.visible = (node.name === maskNames[currentIndex]);
-            console.log('Устанавливаем видимость:', node.name, node.visible);
-          }
+          object3D.traverse((node) => {
+            if (node.isMesh && maskNames.includes(node.name)) {
+              node.visible = (node.name === maskNames[currentIndex]);
+              console.log('Устанавливаем видимость:', node.name, node.visible);
+            }
+          });
         });
       });
     </script>
