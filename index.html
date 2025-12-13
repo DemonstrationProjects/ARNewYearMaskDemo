@@ -63,27 +63,46 @@
     <script>
       const maskNames = ['SantaClaus', 'Reindeer']; // имена мешей в Blender
       let currentIndex = 0;
-
       const maskEntity = document.getElementById('maskModel');
 
-      // Ждём загрузки модели
+      // Функция для логов
+      function logMeshes(node, prefix = '') {
+        if (node.isMesh) {
+          console.log(prefix + 'Mesh:', node.name, 'visible:', node.visible);
+        }
+        if (node.children.length > 0) {
+          node.children.forEach(child => logMeshes(child, prefix + '  '));
+        }
+      }
+
       maskEntity.addEventListener('model-loaded', () => {
+        console.log('Модель загружена, все объекты:');
+        logMeshes(maskEntity.object3D);
+
         // Сначала показываем только первый меш
         maskEntity.object3D.traverse((node) => {
-          if (node.isMesh) {
-            node.visible = maskNames.includes(node.name) ? (node.name === maskNames[0]) : true;
+          if (node.isMesh && maskNames.includes(node.name)) {
+            node.visible = (node.name === maskNames[0]);
           }
         });
       });
 
       document.getElementById('switchBtn').addEventListener('click', () => {
+        if (!maskEntity.object3D) {
+          console.warn('object3D ещё не готов');
+          return;
+        }
+
         const object3D = maskEntity.object3D;
         const prevIndex = currentIndex;
         currentIndex = (currentIndex + 1) % maskNames.length;
 
+        console.log('Смена маски:', maskNames[currentIndex]);
+
         object3D.traverse((node) => {
           if (node.isMesh && maskNames.includes(node.name)) {
             node.visible = (node.name === maskNames[currentIndex]);
+            console.log('Устанавливаем видимость:', node.name, node.visible);
           }
         });
       });
