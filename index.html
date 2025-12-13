@@ -4,20 +4,83 @@
     <meta charset="utf-8">
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-aframe.prod.js"></script>    
+
+    <style>
+      #switchBtn {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 20px;
+        font-size: 16px;
+        background: #1e90ff;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        z-index: 999;
+      }
+    </style>
   </head>
+
   <body>
-    <a-scene mindar-face embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <a-scene
+      mindar-face
+      embedded
+      color-space="sRGB"
+      renderer="colorManagement: true; physicallyCorrectLights: true"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false">
+
       <a-assets>
-	<a-asset-item id="santaClaus" src="./SantaClaus.glb"></a-asset-item>
-	<a-asset-item id="headModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/sparkar/headOccluder.glb"></a-asset-item>
+        <a-asset-item id="santaClaus" src="./SantaClaus.glb"></a-asset-item>
+        <a-asset-item id="reindeer" src="./Reindeer.glb"></a-asset-item>
+
+        <a-asset-item
+          id="headModel"
+          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/sparkar/headOccluder.glb">
+        </a-asset-item>
       </a-assets>
+
       <a-camera active="false" position="0 0 0"></a-camera>
+
       <a-entity mindar-face-target="anchorIndex: 168">
-        <a-gltf-model mindar-face-occluder position="0 0 0" rotation="0 0 0" scale="4 4 4" src="#headModel"></a-gltf-model>
+        <a-gltf-model
+          mindar-face-occluder
+          position="0 0 0"
+          scale="4 4 4"
+          src="#headModel">
+        </a-gltf-model>
       </a-entity>
+
       <a-entity mindar-face-target="anchorIndex: 168">
-        <a-gltf-model id="maskModel" rotation="0 0 0" position="0 0 0" scale="4 4 4" src="#santaClaus"></a-gltf-model>
+        <a-gltf-model
+          id="maskModel"
+          position="0 0 0"
+          rotation="0 0 0"
+          scale="4 4 4"
+          src="#santaClaus">
+        </a-gltf-model>
       </a-entity>
+
     </a-scene>
+
+    <button id="switchBtn">Сменить маску</button>
+
+    <script>
+      const models = [
+        '#santaClaus',
+        '#reindeer'
+      ];
+
+      let currentIndex = 0;
+      const maskModel = document.getElementById('maskModel');
+      const switchBtn = document.getElementById('switchBtn');
+
+      switchBtn.addEventListener('click', () => {
+        currentIndex = (currentIndex + 1) % models.length;
+        maskModel.setAttribute('src', models[currentIndex]);
+      });
+    </script>
+
   </body>
 </html>
