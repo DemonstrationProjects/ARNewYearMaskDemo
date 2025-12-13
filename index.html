@@ -72,36 +72,21 @@
             border-radius: 12px;
         }
         
-        .loading-overlay {
+        .debug-panel {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            z-index: 10000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 18px;
-            flex-direction: column;
-            transition: opacity 0.5s ease;
-        }
-        
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid #667eea;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            top: 100px;
+            right: 20px;
+            z-index: 9999;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-width: 300px;
+            max-height: 200px;
+            overflow: auto;
+            border: 1px solid #0f0;
         }
         
         .hidden {
@@ -110,10 +95,10 @@
     </style>
 </head>
 <body>
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="spinner"></div>
-        <div>Загрузка моделей...</div>
-        <div id="loadingProgress" style="margin-top: 10px; font-size: 14px; color: #ccc;"></div>
+    <!-- Панель отладки -->
+    <div id="debugPanel" class="debug-panel">
+        <strong>Отладка моделей:</strong><br>
+        <div id="debugInfo"></div>
     </div>
     
     <a-scene mindar-face embedded color-space="sRGB" 
@@ -121,13 +106,16 @@
              vr-mode-ui="enabled: false"
              device-orientation-permission-ui="enabled: false">
         
+        <!-- ТОЛЬКО ОДНА МОДЕЛЬ В a-assets для начала -->
         <a-assets>
+            <!-- Сначала только Санта, чтобы проверить -->
             <a-asset-item id="santaClaus" src="./SantaClaus.glb"></a-asset-item>
-            <a-asset-item id="reindeer" src="./Reindeer.glb"></a-asset-item>
             <a-asset-item id="headModel" src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/face-tracking/assets/sparkar/headOccluder.glb"></a-asset-item>            
         </a-assets>
         
-        <a-camera active="false" position="0 0 0"></a-camera>        
+        <a-camera active="false" position="0 0 0"></a-camera>
+        
+        <!-- Оклюдер -->
         <a-entity mindar-face-target="anchorIndex: 168">
             <a-gltf-model mindar-face-occluder 
                          position="0 0 0" 
@@ -138,6 +126,7 @@
             </a-gltf-model>
         </a-entity>
         
+        <!-- Контейнер для маски -->
         <a-entity mindar-face-target="anchorIndex: 168">
             <a-gltf-model id="maskModel" 
                          rotation="0 0 0" 
@@ -149,85 +138,143 @@
     </a-scene>
     
     <div id="currentModelName">🎅 Санта Клаус</div>
-    <div class="model-indicator">Нажмите кнопку или пробел для смены</div>
-    <button id="toggleButton">🔄 Сменить маску</button>
+    <div class="model-indicator">Проверяем загрузку моделей...</div>
+    <button id="toggleButton" style="display: none;">🔄 Сменить маску</button>
     
     <script>
-        // Список моделей с настройками для каждой
-        const models = [
+        let models = [
             { 
                 id: 'santaClaus', 
                 name: '🎅 Санта Клаус',
-                scale: { x: 1, y: 1, z: 1 },
-                position: { x: 0, y: 0, z: 0 },
-                rotation: { x: 0, y: 0, z: 0 }
-            },
-            { 
-                id: 'reindeer', 
-                name: '🦌 Олень Санты',
-                scale: { x: 1, y: 1, z: 1 },
-                position: { x: 0, y: 0, z: 0 },
-                rotation: { x: 0, y: 0, z: 0 }
+                scale: { x: 1, y: 1, z: 1 }
             }
         ];
         
         let currentModelIndex = 0;
-        let modelsLoaded = 0;
-        const totalModels = models.length + 1; // +1 для headModel
-        
         const maskElement = document.getElementById('maskModel');
         const modelNameElement = document.getElementById('currentModelName');
         const toggleButton = document.getElementById('toggleButton');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const loadingProgress = document.getElementById('loadingProgress');
+        const debugInfo = document.getElementById('debugInfo');
+        const modelIndicator = document.querySelector('.model-indicator');
         
-        function updateLoadingProgress() {
-            modelsLoaded++;
-            const progress = Math.round((modelsLoaded / totalModels) * 100);
-            loadingProgress.textContent = `${progress}% (${modelsLoaded}/${totalModels} моделей)`;
-            
-            if (modelsLoaded >= totalModels) {
-                setTimeout(() => {
-                    loadingOverlay.style.opacity = '0';
-                    setTimeout(() => {
-                        loadingOverlay.classList.add('hidden');
-                    }, 500);
-                }, 500);
-            }
+        // Функция для проверки существования файла
+        function checkFileExists(url, callback) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('HEAD', url);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    callback(xhr.status === 200, url, xhr.status);
+                }
+            };
+            xhr.send();
         }
         
-        function changeModel() {
-            maskElement.setAttribute('animation', {
-                property: 'scale',
-                to: '0.01 0.01 0.01',
-                dur: 200,
-                easing: 'easeInQuad'
+        // Функция для добавления отладочной информации
+        function addDebugInfo(message, isError = false) {
+            const now = new Date();
+            const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            const color = isError ? '#ff5555' : '#55ff55';
+            debugInfo.innerHTML = `<span style="color:${color}">[${time}] ${message}</span><br>` + debugInfo.innerHTML;
+            console.log(message);
+        }
+        
+        // Проверяем существование файлов моделей
+        function checkModels() {
+            addDebugInfo('Начинаем проверку моделей...');
+            
+            // Проверяем Санту (должен существовать)
+            checkFileExists('./SantaClaus.glb', function(exists, url, status) {
+                if (exists) {
+                    addDebugInfo(`✓ SantaClaus.glb найден (статус: ${status})`);
+                } else {
+                    addDebugInfo(`✗ SantaClaus.glb НЕ найден (статус: ${status})`, true);
+                }
             });
             
-            setTimeout(() => {
-                currentModelIndex = (currentModelIndex + 1) % models.length;
-                const currentModel = models[currentModelIndex];
-                maskElement.setAttribute('src', `#${currentModel.id}`);
-                maskElement.setAttribute('scale', 
-                    `${currentModel.scale.x} ${currentModel.scale.y} ${currentModel.scale.z}`);
-                maskElement.setAttribute('position',
-                    `${currentModel.position.x} ${currentModel.position.y} ${currentModel.position.z}`);
-                maskElement.setAttribute('rotation',
-                    `${currentModel.rotation.x} ${currentModel.rotation.y} ${currentModel.rotation.z}`);
+            // Проверяем Оленя
+            checkFileExists('./Reindeer.glb', function(exists, url, status) {
+                if (exists) {
+                    addDebugInfo(`✓ Reindeer.glb найден (статус: ${status})`);
+                    
+                    // Если олень найден, добавляем его модель в assets и в список
+                    addReindeerModel();
+                } else {
+                    addDebugInfo(`✗ Reindeer.glb НЕ найден (статус: ${status})`, true);
+                    addDebugInfo('Проверьте, что файл Reindeer.glb находится в той же папке, что и SantaClaus.glb', true);
+                }
+            });
+        }
+        
+        // Функция для добавления модели оленя
+        function addReindeerModel() {
+            // Добавляем модель оленя в assets динамически
+            const sceneEl = document.querySelector('a-scene');
+            const assetEl = sceneEl.querySelector('a-assets');
+            
+            // Создаем элемент для модели оленя
+            const reindeerAsset = document.createElement('a-asset-item');
+            reindeerAsset.setAttribute('id', 'reindeer');
+            reindeerAsset.setAttribute('src', './Reindeer.glb');
+            
+            // Добавляем событие загрузки
+            reindeerAsset.addEventListener('loaded', function() {
+                addDebugInfo('Модель Reindeer.glb успешно загружена в память');
                 
-                modelNameElement.textContent = currentModel.name;
-                
-                maskElement.setAttribute('animation', {
-                    property: 'scale',
-                    from: '0.01 0.01 0.01',
-                    to: `${currentModel.scale.x} ${currentModel.scale.y} ${currentModel.scale.z}`,
-                    dur: 300,
-                    easing: 'easeOutBack'
+                // Добавляем оленя в список моделей
+                models.push({
+                    id: 'reindeer',
+                    name: '🦌 Олень Санты',
+                    scale: { x: 1, y: 1, z: 1 }
                 });
                 
+                // Активируем кнопку переключения
+                toggleButton.style.display = 'block';
+                modelIndicator.textContent = 'Нажмите кнопку или пробел для смены';
+                addDebugInfo('Модель оленя добавлена в список. Всего моделей: ' + models.length);
+            });
+            
+            reindeerAsset.addEventListener('error', function(e) {
+                addDebugInfo('Ошибка загрузки Reindeer.glb в A-Frame', true);
+                addDebugInfo('Возможно, файл поврежден или не в формате GLB', true);
+            });
+            
+            // Добавляем в assets
+            assetEl.appendChild(reindeerAsset);
+        }
+        
+        // Простая функция смены модели
+        function changeModel() {
+            if (models.length <= 1) {
+                addDebugInfo('Доступна только одна модель', true);
+                return;
+            }
+            
+            // Меняем индекс
+            currentModelIndex = (currentModelIndex + 1) % models.length;
+            const currentModel = models[currentModelIndex];
+            
+            addDebugInfo(`Переключаем на модель: ${currentModel.name}`);
+            
+            // Прячем текущую модель
+            maskElement.setAttribute('visible', 'false');
+            
+            setTimeout(() => {
+                // Меняем модель
+                maskElement.setAttribute('src', `#${currentModel.id}`);
+                
+                // Устанавливаем масштаб
+                maskElement.setAttribute('scale', 
+                    `${currentModel.scale.x} ${currentModel.scale.y} ${currentModel.scale.z}`);
+                
+                // Показываем модель
+                maskElement.setAttribute('visible', 'true');
+                
+                // Обновляем название
+                modelNameElement.textContent = currentModel.name;
+                
+                // Анимация названия
                 modelNameElement.style.transform = 'translateX(-50%) scale(1.1)';
                 modelNameElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                modelNameElement.style.borderColor = 'rgba(255, 255, 255, 0.3)';
                 
                 setTimeout(() => {
                     modelNameElement.style.transform = 'translateX(-50%) scale(1)';
@@ -235,80 +282,88 @@
                 
                 setTimeout(() => {
                     modelNameElement.style.background = 'rgba(0, 0, 0, 0.8)';
-                    modelNameElement.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                 }, 1000);
                 
             }, 200);
         }
         
+        // Инициализация
+        document.querySelector('a-scene').addEventListener('loaded', function() {
+            addDebugInfo('AR сцена загружена');
+            
+            // Проверяем модели через 1 секунду
+            setTimeout(checkModels, 1000);
+        });
+        
+        // Обработчики событий
         toggleButton.addEventListener('click', changeModel);
         
         document.addEventListener('keydown', (event) => {
-            if (event.code === 'Space' || event.code === 'ArrowRight' || event.code === 'ArrowDown') {
+            if (event.code === 'Space') {
                 event.preventDefault();
                 changeModel();
             }
         });
         
-        document.querySelector('a-scene').addEventListener('loaded', function() {
-            console.log('AR сцена загружена');
-            updateLoadingProgress();
-        });
-        
-        const assetItems = document.querySelectorAll('a-asset-item');
-        assetItems.forEach(item => {
-            item.addEventListener('loaded', function() {
-                console.log(`Модель ${this.id} загружена`);
-                updateLoadingProgress();
+        // Отслеживаем события модели Санты
+        const santaAsset = document.querySelector('a-asset-item[id="santaClaus"]');
+        if (santaAsset) {
+            santaAsset.addEventListener('loaded', function() {
+                addDebugInfo('Модель SantaClaus.glb загружена успешно');
             });
             
-            item.addEventListener('error', function() {
-                console.error(`Ошибка загрузки модели ${this.id}`);
-                updateLoadingProgress();
+            santaAsset.addEventListener('error', function(e) {
+                addDebugInfo('Ошибка загрузки SantaClaus.glb', true);
             });
-        });
-        
-        maskElement.addEventListener('error', function(event) {
-            console.error('Ошибка отображения модели:', models[currentModelIndex].name, event.detail);
-            
-            modelNameElement.textContent = '⚠️ Ошибка загрузки модели';
-            modelNameElement.style.background = 'rgba(255, 50, 50, 0.8)';
-            
-            setTimeout(() => {
-                modelNameElement.style.background = 'rgba(0, 0, 0, 0.8)';
-                setTimeout(changeModel, 1000);
-            }, 2000);
-        });
-        
-        console.log('=== Модели для AR масок ===');
-        models.forEach((model, index) => {
-            console.log(`${index + 1}. ${model.name} (ID: ${model.id})`);
-        });
-        
-        let touchStartX = 0;
-        let touchEndX = 0;
-        
-        document.addEventListener('touchstart', (event) => {
-            touchStartX = event.changedTouches[0].screenX;
-        });
-        
-        document.addEventListener('touchend', (event) => {
-            touchEndX = event.changedTouches[0].screenX;
-            handleSwipe();
-        });
-        
-        function handleSwipe() {
-            const swipeThreshold = 50;
-            const diff = touchStartX - touchEndX;
-            
-            if (Math.abs(diff) > swipeThreshold) {
-                if (diff > 0) {
-                    changeModel();
-                } else {
-                    changeModel();
-                }
-            }
         }
+        
+        // Обработчик ошибок для отображения модели
+        maskElement.addEventListener('error', function(event) {
+            const currentModel = models[currentModelIndex] || { name: 'неизвестная' };
+            addDebugInfo(`Ошибка отображения модели: ${currentModel.name}`, true);
+            addDebugInfo('Детали: ' + JSON.stringify(event.detail), true);
+            
+            // Пробуем вернуться к первой модели
+            if (currentModelIndex !== 0 && models.length > 0) {
+                setTimeout(() => {
+                    currentModelIndex = 0;
+                    maskElement.setAttribute('src', `#${models[0].id}`);
+                    modelNameElement.textContent = models[0].name;
+                    addDebugInfo('Возврат к модели Санты');
+                }, 1000);
+            }
+        });
+        
+        // Проверяем в консоли, что файлы доступны
+        console.log('Проверка доступности файлов моделей:');
+        console.log('SantaClaus.glb должен быть по пути:', window.location.origin + '/SantaClaus.glb');
+        console.log('Reindeer.glb должен быть по пути:', window.location.origin + '/Reindeer.glb');
+        
+        // Пытаемся загрузить модель оленя через fetch для диагностики
+        fetch('./Reindeer.glb')
+            .then(response => {
+                console.log('Ответ от сервера для Reindeer.glb:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    headers: Object.fromEntries([...response.headers])
+                });
+                
+                if (response.ok) {
+                    return response.blob();
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            })
+            .then(blob => {
+                console.log('Reindeer.glb загружен успешно как blob, размер:', blob.size, 'байт');
+                console.log('Тип файла:', blob.type);
+                addDebugInfo(`Reindeer.glb найден (${Math.round(blob.size/1024)} KB, ${blob.type})`);
+            })
+            .catch(error => {
+                console.error('Ошибка загрузки Reindeer.glb:', error);
+                addDebugInfo(`Ошибка загрузки Reindeer.glb: ${error.message}`, true);
+            });
     </script>
 </body>
 </html>
