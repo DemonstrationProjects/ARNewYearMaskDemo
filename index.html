@@ -4,6 +4,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-face-aframe.prod.js"></script>
+    <!-- Добавляем компонент для частиц -->
+    <script src="https://unpkg.com/aframe-particle-system-component@1.0.x/dist/aframe-particle-system-component.min.js"></script>
+    
     <style>
         body {
             margin: 0;
@@ -80,7 +83,7 @@
       <a-entity mindar-face-target="anchorIndex: 168">
         <a-gltf-model
           mindar-face-occluder
-          position="0 0 0.1"
+          position="0 0 0"
           scale="1 1 1"
           src="#headModel">
         </a-gltf-model>
@@ -96,9 +99,6 @@
     <button id="switchBtn">🔄</button>
 
     <script>
-        
-
-
       const maskNames = ['SantaClaus', 'Reindeer', 'Snowman', 'Glasses'];
       const maskDisplayNames = ['🎅', '🦌', '☃️', '👓'];
       let currentIndex = 0;
@@ -106,63 +106,6 @@
       const maskEntity = document.getElementById('maskEntity');
       const currentMaskName = document.getElementById('currentMaskName');
       const switchBtn = document.getElementById('switchBtn');
-      const maskIndicator = document.querySelector('.mask-indicator');
-    // Создаем снегопад после загрузки сцены
-    document.querySelector('a-scene').addEventListener('loaded', function() {
-        createSnowfall();
-    });
-
-    function createSnowfall() {
-        const scene = document.querySelector('a-scene');
-        
-        // Удаляем старый снег, если есть
-        const oldSnow = document.getElementById('snowContainer');
-        if (oldSnow) oldSnow.parentNode.removeChild(oldSnow);
-        
-        // Создаем контейнер для снега
-        const snowContainer = document.createElement('a-entity');
-        snowContainer.setAttribute('id', 'snowContainer');
-        snowContainer.setAttribute('position', '0 3 -2');
-        
-        // Создаем несколько слоев снега для реалистичности
-        const snowLayers = [
-            { count: 1200, size: 0.02, speed: 0.5, color: '#FFFFFF', velX: 0.15 },
-            { count: 800, size: 0.015, speed: 0.3, color: '#F0F8FF', velX: -0.1 },
-            { count: 500, size: 0.01, speed: 0.4, color: '#E6F7FF', velX: 0.08 }
-        ];
-        
-        snowLayers.forEach((layer, index) => {
-            const snow = document.createElement('a-entity');
-            snow.setAttribute('particle-system', {
-                preset: 'snow',
-                particleCount: layer.count,
-                color: layer.color,
-                velocityValue: `${layer.velX} ${layer.speed} 0`,
-                accelerationValue: '0 -0.25 0',
-                size: layer.size,
-                maxAge: 10,
-                opacity: 0.7 - (index * 0.1)
-            });
-            snowContainer.appendChild(snow);
-        });
-        
-        scene.appendChild(snowContainer);
-        
-        // Добавляем мерцающие звезды/снежинки
-        const sparkles = document.createElement('a-entity');
-        sparkles.setAttribute('particle-system', {
-            preset: 'default',
-            particleCount: 300,
-            color: '#FFFFFF',
-            velocityValue: '0 0.1 0',
-            accelerationValue: '0 -0.05 0',
-            size: 0.005,
-            maxAge: 5,
-            opacity: [0, 1, 0],
-            blending: 'additive'
-        });
-        snowContainer.appendChild(sparkles);
-    }
 
       function updateMaskName() {
           currentMaskName.textContent = maskDisplayNames[currentIndex];
@@ -180,6 +123,104 @@
               currentMaskName.style.borderColor = 'rgba(255, 255, 255, 0.1)';
           }, 1000);
       }
+
+      // Функция создания снегопада
+      function createSnowfall() {
+          const scene = document.querySelector('a-scene');
+          
+          // Проверяем, поддерживается ли компонент частиц
+          if (!AFRAME.components['particle-system']) {
+              console.error('Компонент particle-system не загружен!');
+              return;
+          }
+          
+          // Создаем контейнер для снега
+          const snowContainer = document.createElement('a-entity');
+          snowContainer.setAttribute('id', 'snowContainer');
+          snowContainer.setAttribute('position', '0 3 -2');
+          
+          // Создаем несколько слоев снега для реалистичности
+          const snowLayers = [
+              { 
+                  count: 1200, 
+                  size: 0.02, 
+                  speed: 0.5, 
+                  color: '#FFFFFF', 
+                  velX: 0.15,
+                  opacity: 0.8
+              },
+              { 
+                  count: 800, 
+                  size: 0.015, 
+                  speed: 0.3, 
+                  color: '#F0F8FF', 
+                  velX: -0.1,
+                  opacity: 0.7
+              },
+              { 
+                  count: 500, 
+                  size: 0.01, 
+                  speed: 0.4, 
+                  color: '#E6F7FF', 
+                  velX: 0.08,
+                  opacity: 0.6
+              }
+          ];
+          
+          snowLayers.forEach((layer, index) => {
+              const snow = document.createElement('a-entity');
+              snow.setAttribute('particle-system', {
+                  preset: 'snow',
+                  particleCount: layer.count,
+                  color: layer.color,
+                  velocityValue: `${layer.velX} ${layer.speed} 0`,
+                  accelerationValue: '0 -0.25 0',
+                  size: layer.size,
+                  maxAge: 10 + index * 2,
+                  opacity: layer.opacity,
+                  transparent: true,
+                  blending: 'normal'
+              });
+              snowContainer.appendChild(snow);
+          });
+          
+          scene.appendChild(snowContainer);
+          console.log('Снегопад создан!');
+          
+          // Добавляем мерцающие снежинки
+          const sparkles = document.createElement('a-entity');
+          sparkles.setAttribute('particle-system', {
+              preset: 'default',
+              particleCount: 200,
+              color: '#FFFFFF',
+              velocityValue: '0 0.2 0',
+              accelerationValue: '0 -0.1 0',
+              size: 0.008,
+              maxAge: 6,
+              opacity: [0.3, 0.8, 0.3],
+              transparent: true,
+              blending: 'additive'
+          });
+          snowContainer.appendChild(sparkles);
+      }
+
+      // Ждем полной загрузки сцены
+      document.querySelector('a-scene').addEventListener('loaded', function() {
+          console.log('Сцена загружена, создаем снегопад...');
+          // Задержка для гарантии загрузки всех компонентов
+          setTimeout(createSnowfall, 1000);
+      });
+
+      // Альтернативно, можно создать снег при загрузке страницы
+      window.addEventListener('load', function() {
+          console.log('Страница загружена');
+          // Ждем немного перед созданием снега
+          setTimeout(function() {
+              if (document.querySelector('a-scene').hasLoaded) {
+                  createSnowfall();
+              }
+          }, 500);
+      });
 
       maskEntity.addEventListener('model-loaded', () => {
           const object3D = maskEntity.getObject3D('mesh');
@@ -204,6 +245,14 @@
               updateMaskName();
           });          
       });
+      
+      // Если снег не появляется, добавим кнопку для его ручного создания
+      setTimeout(function() {
+          if (!document.getElementById('snowContainer')) {
+              console.log('Снег не создался автоматически, пробуем вручную...');
+              createSnowfall();
+          }
+      }, 3000);
     </script>
 </body>
 </html>
