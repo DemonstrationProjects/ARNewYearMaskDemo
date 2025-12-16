@@ -57,10 +57,6 @@
         #switchBtn:active {
             transform: translateX(-50%) scale(0.95);
         }
-
-        canvas {
-            touch-action: none;
-        }
     </style>
 </head>
 <body>
@@ -84,7 +80,7 @@
       <a-entity mindar-face-target="anchorIndex: 168">
         <a-gltf-model
           mindar-face-occluder
-          position="0 0 0"
+          position="0 0 0.1"
           scale="1 1 1"
           src="#headModel">
         </a-gltf-model>
@@ -100,6 +96,9 @@
     <button id="switchBtn">🔄</button>
 
     <script>
+        
+
+
       const maskNames = ['SantaClaus', 'Reindeer', 'Snowman', 'Glasses'];
       const maskDisplayNames = ['🎅', '🦌', '☃️', '👓'];
       let currentIndex = 0;
@@ -108,6 +107,62 @@
       const currentMaskName = document.getElementById('currentMaskName');
       const switchBtn = document.getElementById('switchBtn');
       const maskIndicator = document.querySelector('.mask-indicator');
+    // Создаем снегопад после загрузки сцены
+    document.querySelector('a-scene').addEventListener('loaded', function() {
+        createSnowfall();
+    });
+
+    function createSnowfall() {
+        const scene = document.querySelector('a-scene');
+        
+        // Удаляем старый снег, если есть
+        const oldSnow = document.getElementById('snowContainer');
+        if (oldSnow) oldSnow.parentNode.removeChild(oldSnow);
+        
+        // Создаем контейнер для снега
+        const snowContainer = document.createElement('a-entity');
+        snowContainer.setAttribute('id', 'snowContainer');
+        snowContainer.setAttribute('position', '0 3 -2');
+        
+        // Создаем несколько слоев снега для реалистичности
+        const snowLayers = [
+            { count: 1200, size: 0.02, speed: 0.5, color: '#FFFFFF', velX: 0.15 },
+            { count: 800, size: 0.015, speed: 0.3, color: '#F0F8FF', velX: -0.1 },
+            { count: 500, size: 0.01, speed: 0.4, color: '#E6F7FF', velX: 0.08 }
+        ];
+        
+        snowLayers.forEach((layer, index) => {
+            const snow = document.createElement('a-entity');
+            snow.setAttribute('particle-system', {
+                preset: 'snow',
+                particleCount: layer.count,
+                color: layer.color,
+                velocityValue: `${layer.velX} ${layer.speed} 0`,
+                accelerationValue: '0 -0.25 0',
+                size: layer.size,
+                maxAge: 10,
+                opacity: 0.7 - (index * 0.1)
+            });
+            snowContainer.appendChild(snow);
+        });
+        
+        scene.appendChild(snowContainer);
+        
+        // Добавляем мерцающие звезды/снежинки
+        const sparkles = document.createElement('a-entity');
+        sparkles.setAttribute('particle-system', {
+            preset: 'default',
+            particleCount: 300,
+            color: '#FFFFFF',
+            velocityValue: '0 0.1 0',
+            accelerationValue: '0 -0.05 0',
+            size: 0.005,
+            maxAge: 5,
+            opacity: [0, 1, 0],
+            blending: 'additive'
+        });
+        snowContainer.appendChild(sparkles);
+    }
 
       function updateMaskName() {
           currentMaskName.textContent = maskDisplayNames[currentIndex];
